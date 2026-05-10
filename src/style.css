@@ -538,3 +538,54 @@ a { color: inherit; text-decoration: none; }
 }
 .avatar-upload-wrapper:active .avatar-upload-overlay { opacity: 1; }
 
+/* ─── Video Owner Badge & Comments ───────────────────────────── */
+.video-owner-badge {
+  position: absolute; top: 8px; left: 8px;
+  background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(4px);
+  padding: 4px 8px 4px 4px; border-radius: 20px;
+  display: flex; align-items: center; gap: 6px; z-index: 10;
+}
+.owner-avatar-circle {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--primary); display: flex; align-items: center; justify-content: center;
+  overflow: hidden; border: 1px solid rgba(255,255,255,0.2);
+}
+.owner-avatar-img { width: 100%; height: 100%; object-fit: cover; }
+.owner-avatar-text { font-size: 11px; font-weight: 800; color: #111; }
+.owner-name { font-size: 11px; font-weight: 600; color: #fff; max-width: 90px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.video-modal-content.has-comments {
+  display: flex; flex-direction: column; height: 90vh; max-height: 800px;
+  border-radius: 16px; overflow: hidden; padding: 0;
+  background: var(--bg-card);
+}
+.video-modal-content.has-comments .embed-wrapper { flex-shrink: 0; }
+.comments-section {
+  flex-grow: 1; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--bg-app); border-top: 1px solid var(--border);
+}
+.comments-section h3 { padding: 12px 16px; margin: 0; font-size: 14px; font-weight: 800; text-transform: uppercase; border-bottom: 1px solid var(--border); background: var(--bg-card); }
+.comments-list {
+  flex-grow: 1; overflow-y: auto; padding: 16px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.comment-item { display: flex; gap: 10px; align-items: flex-start; }
+.comment-avatar {
+  width: 32px; height: 32px; border-radius: 50%; background: var(--primary); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: #111;
+  overflow: hidden;
+}
+.comment-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.comment-body {
+  background: var(--bg-card); padding: 10px 12px; border-radius: 12px; border-top-left-radius: 4px;
+  font-size: 13px; flex-grow: 1; border: 1px solid var(--border);
+}
+.comment-body strong { display: block; color: var(--primary); font-size: 11px; text-transform: uppercase; margin-bottom: 2px; }
+.comment-body p { margin: 0; color: var(--text-main); }
+.comment-input-area {
+  padding: 12px; background: var(--bg-card); border-top: 1px solid var(--border);
+  display: flex; gap: 8px;
+}
+.comment-input-area .field-input { margin-bottom: 0; flex-grow: 1; padding: 8px 12px; border-radius: 20px; font-size: 13px; }
+.comment-input-area .btn-primary { width: auto; padding: 0 16px; border-radius: 20px; height: 36px; font-size: 12px; }
+.empty-comments { color: var(--text-muted); font-size: 13px; text-align: center; margin-top: 20px; }

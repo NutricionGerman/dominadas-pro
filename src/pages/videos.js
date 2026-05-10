@@ -2,8 +2,8 @@
 // ─── Pantalla de Galería de Videos (YouTube) ────────────────────────────────
 
 import { auth } from '../firebase.js';
-import { saveVideo, getUserVideos, deleteVideo, getPublicVideos, extractYoutubeId, getThumbnailUrl } from '../services/videoService.js';
-import { getLeaderboard } from '../services/userService.js';
+import { saveVideo, getUserVideos, deleteVideo, getPublicVideos, extractYoutubeId, getThumbnailUrl, getComments, addComment } from '../services/videoService.js';
+import { getLeaderboard, getUserProfile } from '../services/userService.js';
 import { showToast } from '../components/toast.js';
 
 export async function renderVideos(container) {
@@ -134,25 +134,45 @@ export async function renderVideos(container) {
     grid.innerHTML = skeletonGrid(6);
     try {
       const users = await getLeaderboard(20);
+      const userMap = {};
+      users.forEach(u => userMap[u.id] = u);
+      
       const uids = users.map(u => u.id);
       const videos = await getPublicVideos(uids);
       if (videos.length === 0) {
         grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><p>La comunidad no ha subido videos todavía</p></div>`;
         return;
       }
-      grid.innerHTML = videos.map(v => videoCard(v, false)).join('');
+      grid.innerHTML = videos.map(v => videoCard(v, false, userMap[v.userId])).join('');
     } catch (_) {
       grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><p>Error al cargar videos</p></div>`;
     }
   }
 }
 
-function videoCard(v, isOwner) {
+function videoCard(v, isOwner, ownerData = null) {
   const thumb = v.thumbnailUrl || getThumbnailUrl(v.videoId);
   const title = v.title || `Semana ${v.week}`;
+  
+  let ownerHtml = '';
+  if (ownerData && !isOwner) {
+    const avatarContent = ownerData.photoURL 
+      ? `<img src="${ownerData.photoURL}" alt="Avatar" class="owner-avatar-img">` 
+      : `<span class="owner-avatar-text">${(ownerData.displayName || 'U').charAt(0).toUpperCase()}</span>`;
+    ownerHtml = `
+      <div class="video-owner-badge">
+        <div class="owner-avatar-circle">${avatarContent}</div>
+        <span class="owner-name">${escapeHtml(ownerData.displayName || 'Usuario')}</span>
+      </div>
+    `;
+  }
+  
+  const videoDataStr = encodeURIComponent(JSON.stringify(v));
+
   return `
-    <div class="video-card" onclick="openVideoModal('${v.embedUrl || `https://www.youtube.com/embed/${v.videoId}`}')">
+    <div class="video-card" onclick="openVideoModal('${v.embedUrl || `https://www.youtube.com/embed/${v.videoId}`}', '${videoDataStr}')">
       <div class="video-thumb" style="background-image:url('${thumb}')">
+        ${ownerHtml}
         <div class="play-overlay">▶</div>
         <span class="week-badge">Sem. ${v.week}</span>
       </div>
@@ -164,20 +184,94 @@ function videoCard(v, isOwner) {
   `;
 }
 
-// Modal de reproducción
-window.openVideoModal = (embedUrl) => {
+// Modal de reproducción con comentarios
+window.openVideoModal = async (embedUrl, videoDataStr) => {
+  const videoObj = videoDataStr ? JSON.parse(decodeURIComponent(videoDataStr)) : null;
   const modal = document.createElement('div');
   modal.className = 'video-modal';
+  
+  let commentsHtml = '';
+  if (videoObj && videoObj.userId && videoObj.id) {
+    commentsHtml = `
+      <div class="comments-section">
+        <h3>💬 Comentarios</h3>
+        <div id="comments-list" class="comments-list">
+          <p class="comments-loading">Cargando comentarios...</p>
+        </div>
+        <div class="comment-input-area">
+          <input type="text" id="new-comment-text" placeholder="Escribe un comentario..." class="field-input" autocomplete="off">
+          <button class="btn-primary" id="btn-send-comment">Enviar</button>
+        </div>
+      </div>
+    `;
+  }
+
   modal.innerHTML = `
     <div class="video-modal-backdrop" onclick="this.parentElement.remove()"></div>
-    <div class="video-modal-content">
+    <div class="video-modal-content has-comments">
       <button class="modal-close" onclick="this.closest('.video-modal').remove()">✕</button>
       <div class="embed-wrapper">
         <iframe src="${embedUrl}?autoplay=1" frameborder="0" allowfullscreen allow="autoplay"></iframe>
       </div>
+      ${commentsHtml}
     </div>
   `;
   document.body.appendChild(modal);
+
+  if (videoObj && videoObj.userId && videoObj.id) {
+    const commentsList = modal.querySelector('#comments-list');
+    const loadVideoComments = async () => {
+      try {
+        const comments = await getComments(videoObj.userId, videoObj.id);
+        if (comments.length === 0) {
+          commentsList.innerHTML = '<p class="empty-comments">Aún no hay comentarios. ¡Sé el primero!</p>';
+        } else {
+          commentsList.innerHTML = comments.map(c => `
+            <div class="comment-item">
+              <div class="comment-avatar">
+                ${c.photoURL ? `<img src="${c.photoURL}">` : `<span>${(c.displayName || 'U').charAt(0).toUpperCase()}</span>`}
+              </div>
+              <div class="comment-body">
+                <strong>${escapeHtml(c.displayName || 'Usuario')}</strong>
+                <p>${escapeHtml(c.text)}</p>
+              </div>
+            </div>
+          `).join('');
+        }
+      } catch (e) {
+        commentsList.innerHTML = '<p class="empty-comments">Error al cargar comentarios.</p>';
+      }
+    };
+    
+    await loadVideoComments();
+
+    const btnSend = modal.querySelector('#btn-send-comment');
+    const inputStr = modal.querySelector('#new-comment-text');
+    
+    btnSend.onclick = async () => {
+      const text = inputStr.value.trim();
+      if (!text) return;
+      btnSend.disabled = true;
+      try {
+        const currentUid = auth.currentUser.uid;
+        const profile = await getUserProfile(currentUid);
+        await addComment(
+          videoObj.userId, 
+          videoObj.id, 
+          currentUid, 
+          text, 
+          profile.displayName, 
+          profile.photoURL
+        );
+        inputStr.value = '';
+        await loadVideoComments();
+      } catch (err) {
+        showToast('Error al enviar comentario', 'error');
+      } finally {
+        btnSend.disabled = false;
+      }
+    };
+  }
 };
 
 function skeletonGrid(n) {

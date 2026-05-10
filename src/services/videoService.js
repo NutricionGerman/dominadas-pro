@@ -93,3 +93,29 @@ export async function deleteVideo(uid, videoId) {
   const ref = doc(db, 'videos', uid, 'uploads', videoId);
   await deleteDoc(ref);
 }
+
+/**
+ * Agrega un comentario a un video
+ */
+export async function addComment(videoOwnerId, videoId, uid, text, displayName, photoURL) {
+  const ref = collection(db, 'videos', videoOwnerId, 'uploads', videoId, 'comments');
+  await addDoc(ref, {
+    uid,
+    text,
+    displayName,
+    photoURL: photoURL || null,
+    createdAt: serverTimestamp()
+  });
+}
+
+/**
+ * Obtiene los comentarios de un video
+ */
+export async function getComments(videoOwnerId, videoId) {
+  const q = query(
+    collection(db, 'videos', videoOwnerId, 'uploads', videoId, 'comments'),
+    orderBy('createdAt', 'asc')
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
