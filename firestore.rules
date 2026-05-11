@@ -9,13 +9,21 @@ service cloud.firestore {
 
       // Subcolección: plan de 5 semanas del usuario
       match /plans/{planId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Subcolección: historial de RM
+      match /rmHistory/{historyId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && request.auth.uid == userId;
       }
     }
 
     // ── Entrenamientos ────────────────────────────────────────────
     match /workouts/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
 
       match /sessions/{sessionId} {
         allow read: if request.auth != null;

@@ -3,7 +3,7 @@
 
 import { db } from '../firebase.js';
 import {
-  doc, getDoc, setDoc, serverTimestamp, collection, getDocs, query, orderBy, limit
+  doc, getDoc, setDoc, serverTimestamp, collection, getDocs, query, orderBy, limit, addDoc
 } from 'firebase/firestore';
 
 /**
@@ -50,6 +50,28 @@ export async function getUserProfile(uid) {
 export async function updateUserProfile(uid, data) {
   const ref = doc(db, 'users', uid);
   await setDoc(ref, sanitize(data), { merge: true });
+
+  // Guardar historial de 1RM si se provee
+  if (data.currentRM !== undefined) {
+    const historyRef = collection(db, 'users', uid, 'rmHistory');
+    await addDoc(historyRef, {
+      rm: data.currentRM,
+      relativeRM: data.relativeRM !== undefined ? data.relativeRM : null,
+      date: serverTimestamp()
+    });
+  }
+}
+
+/**
+ * Devuelve el historial de RM de un usuario ordenado cronológicamente.
+ */
+export async function getRMHistory(uid) {
+  const q = query(
+    collection(db, 'users', uid, 'rmHistory'),
+    orderBy('date', 'asc')
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 /**

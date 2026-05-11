@@ -4,7 +4,7 @@
 import { auth } from '../firebase.js';
 import { getUserProfile, updateUserProfile, getPlan } from '../services/userService.js';
 import { saveWorkoutSession } from '../services/workoutService.js';
-import { generateProgram, evaluateRIR, calcRM, calcRelativeRM } from '../utils/calculations.js';
+import { generateProgram, evaluateRIR, calcRM, calcRelativeRM, calcWeightFromRM } from '../utils/calculations.js';
 import { showToast } from '../components/toast.js';
 import { navigate } from '../router.js';
 
@@ -52,6 +52,7 @@ export async function renderTracker(container) {
 function renderPlan(plan, currentWeek, config) {
   const body = document.getElementById('tracker-body');
   if (!body) return;
+  window.__currentConfig = config;
 
   const html = plan.map(week => {
     const isPast = week.week < currentWeek;
@@ -125,6 +126,39 @@ function renderPlan(plan, currentWeek, config) {
   // ── Modal de confirmación antes de completar semana
   window.confirmCompleteSession = (week) => {
     const isRecord = week === 5;
+    const config = window.__currentConfig;
+
+    let contentHtml = '';
+    if (isRecord && config) {
+      const targetRM = calcRM(config.bodyWeight, config.addedWeight + config.jump, config.reps);
+      const rmBallast = targetRM - config.bodyWeight;
+      
+      const target1 = calcWeightFromRM(config.bodyWeight, rmBallast, 1);
+      const target4 = calcWeightFromRM(config.bodyWeight, rmBallast, 4);
+      const target6 = calcWeightFromRM(config.bodyWeight, rmBallast, 6);
+      const target8 = calcWeightFromRM(config.bodyWeight, rmBallast, 8);
+
+      contentHtml = `
+        <div class="test-suggestions" style="text-align: left; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+          <h4 style="margin-top:0; margin-bottom: 8px; color:var(--primary); font-size: 0.9rem;">🎯 Marcas objetivo para romper tu récord:</h4>
+          <ul style="margin:0; padding-left: 20px; font-size: 0.85rem; color:#ccc;">
+            <li>1 Rep: +${(Math.round(target1 * 2) / 2).toFixed(1)} kg</li>
+            <li>4 Reps: +${(Math.round(target4 * 2) / 2).toFixed(1)} kg</li>
+            <li>6 Reps: +${(Math.round(target6 * 2) / 2).toFixed(1)} kg</li>
+            <li>8 Reps: +${(Math.round(target8 * 2) / 2).toFixed(1)} kg</li>
+          </ul>
+        </div>
+        <p class="confirm-msg" style="margin-bottom: 10px;">Ingresá tu récord final (Test Libre):</p>
+        <div style="display:flex; gap: 10px; margin-bottom: 15px;">
+          <input type="number" id="test-reps" placeholder="Reps logradas" min="1" class="rir-input" style="flex:1;">
+          <input type="number" id="test-weight" placeholder="Lastre (kg)" step="0.5" class="rir-input" style="flex:1;">
+        </div>
+      `;
+    } else {
+      contentHtml = `
+        <p class="confirm-msg">Avanzarás a la Semana ${week + 1}. Esta acción no se puede deshacer.</p>
+      `;
+    }
 
     const overlay = document.createElement('div');
     overlay.className = 'confirm-overlay';
@@ -132,13 +166,10 @@ function renderPlan(plan, currentWeek, config) {
       <div class="confirm-modal">
         <div class="confirm-icon">${isRecord ? '🏆' : '⚠️'}</div>
         <h3 class="confirm-title">${isRecord ? '¡Semana Récord!' : 'Completar Semana ' + week}</h3>
-        <p class="confirm-msg">${isRecord
-          ? 'Esto actualizará tu RM y tu posición en el ranking global.'
-          : 'Avanzarás a la Semana ' + (week + 1) + '. Esta acción no se puede deshacer.'}
-        </p>
+        ${contentHtml}
         <div class="confirm-actions">
           <button class="btn-secondary" onclick="this.closest('.confirm-overlay').remove()">Cancelar</button>
-          <button class="btn-primary" id="btn-confirm-ok" onclick="confirmCompleteSession_do(${week}, this)">${isRecord ? '🏆 Sí, es mi récord' : '✅ Confirmar'}</button>
+          <button class="btn-primary" id="btn-confirm-ok" onclick="confirmCompleteSession_do(${week}, this)">${isRecord ? '🏆 Guardar Récord' : '✅ Confirmar'}</button>
         </div>
       </div>
     `;
@@ -156,11 +187,27 @@ function renderPlan(plan, currentWeek, config) {
       const nextWeek = week < 5 ? week + 1 : 5;
 
       if (week === 5) {
+        const repsInput = document.getElementById('test-reps')?.value;
+        const weightInput = document.getElementById('test-weight')?.value;
+
+        if (!repsInput || !weightInput) {
+          showToast('Debes ingresar las repeticiones y el lastre de tu récord.', 'warning');
+          btn.disabled = false;
+          btn.textContent = '🏆 Guardar Récord';
+          return;
+        }
+
+        const testReps = parseInt(repsInput, 10);
+        const testWeight = parseFloat(weightInput);
+
         const profile = await getUserProfile(uid);
         const c = profile.programConfig;
-        const newRM = calcRM(c.bodyWeight, c.addedWeight + c.jump, c.reps);
+        
+        // Calcular el nuevo RM real en base a lo que el usuario logró en el Test Libre
+        const newRM = calcRM(c.bodyWeight, testWeight, testReps);
         const rmBallast = newRM - c.bodyWeight;
         const relRM = calcRelativeRM(rmBallast, c.bodyWeight);
+
         await updateUserProfile(uid, {
           currentRM: parseFloat(rmBallast.toFixed(2)),
           relativeRM: parseFloat(relRM.toFixed(4)),

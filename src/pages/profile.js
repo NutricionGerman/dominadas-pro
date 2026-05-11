@@ -2,47 +2,76 @@
 // ─── Pantalla de Perfil y Progreso ───────────────────────────────────────────
 
 import { auth } from '../firebase.js';
-import { getUserProfile, updateUserProfile } from '../services/userService.js';
+import { getUserProfile, updateUserProfile, getRMHistory } from '../services/userService.js';
 import { getWorkoutHistory } from '../services/workoutService.js';
+import Chart from 'chart.js/auto';
 import { showToast } from '../components/toast.js';
 import { navigate } from '../router.js';
 import { signOut } from 'firebase/auth';
 
 let cropState = null;
 
-export async function renderProfile(container) {
-  const user = auth.currentUser;
-  
+export async function renderProfile(container, params = {}) {
+  const targetUid = params.uid || auth.currentUser.uid;
+  const isOwnProfile = targetUid === auth.currentUser.uid;
+
+  container.innerHTML = `<div class="loader-center"><div class="spinner"></div></div>`;
+
+  // Cargar datos en paralelo
+  const [profile, history, rmHistory] = await Promise.all([
+    getUserProfile(targetUid).catch(() => null),
+    getWorkoutHistory(targetUid, 10).catch(() => []),
+    getRMHistory(targetUid).catch(() => []),
+  ]);
+
+  if (!profile && !isOwnProfile) {
+    container.innerHTML = `<div class="page profile-page"><div class="empty-state"><h3>Usuario no encontrado</h3><button class="btn-primary" onclick="window.__nav('leaderboard')">Volver al Ranking</button></div></div>`;
+    return;
+  }
+
+  const displayName = profile?.displayName || (isOwnProfile ? auth.currentUser.displayName : 'Atleta');
+  const emailHtml = isOwnProfile ? `<p class="profile-email">${auth.currentUser.email}</p>` : '';
+
   container.innerHTML = `
     <div class="page profile-page">
+      ${!isOwnProfile ? `<button class="btn-secondary" onclick="window.__nav('leaderboard')" style="margin-bottom:15px;">← Volver al Ranking</button>` : ''}
       <div class="profile-hero">
-        <label class="avatar-upload-wrapper" title="Cambiar foto de perfil">
-          <input type="file" id="photo-input" accept="image/*" class="hidden">
+        <label class="${isOwnProfile ? 'avatar-upload-wrapper' : 'avatar-static-wrapper'}" title="${isOwnProfile ? 'Cambiar foto de perfil' : ''}">
+          ${isOwnProfile ? `<input type="file" id="photo-input" accept="image/*" class="hidden">` : ''}
           <div class="avatar-circle" id="profile-avatar">
-            ${getInitials(user.displayName || 'U')}
+            ${profile?.photoURL ? `<img src="${profile.photoURL}" alt="Avatar">` : getInitials(displayName)}
           </div>
-          <div class="avatar-upload-overlay">📷</div>
+          ${isOwnProfile ? `<div class="avatar-upload-overlay">📷</div>` : ''}
         </label>
-        <h2 class="profile-name" id="profile-display-name">${user.displayName || 'Usuario'}</h2>
-        <p class="profile-email">${user.email}</p>
+        <h2 class="profile-name" id="profile-display-name">${displayName}</h2>
+        ${emailHtml}
       </div>
 
       <div id="profile-stats" class="profile-stats">
-        <div class="loader-center"><div class="spinner"></div></div>
+        <!-- Renderizado dinámico de stats -->
       </div>
 
+      <div class="card">
+        <h2 class="card-title">Evolución de 1RM</h2>
+        <div class="chart-container" style="position: relative; height: 200px; width: 100%;">
+          <canvas id="rmChart"></canvas>
+        </div>
+      </div>
+
+      ${isOwnProfile ? `
       <div class="card">
         <h2 class="card-title">Editar perfil</h2>
         <div class="field-group">
           <label class="field-label">Nombre de usuario</label>
-          <input type="text" id="edit-name" class="field-input" value="${user.displayName || ''}">
+          <input type="text" id="edit-name" class="field-input" value="${displayName}">
         </div>
         <div class="field-group">
           <label class="field-label">Peso corporal (kg)</label>
-          <input type="number" id="edit-bw" class="field-input" step="0.5">
+          <input type="number" id="edit-bw" class="field-input" step="0.5" value="${profile?.bodyWeight || ''}">
         </div>
         <button class="btn-primary" onclick="saveProfile()">Guardar cambios</button>
       </div>
+      ` : ''}
 
       <div class="card">
         <h2 class="card-title">Historial reciente</h2>
@@ -51,19 +80,20 @@ export async function renderProfile(container) {
         </div>
       </div>
 
+      ${isOwnProfile ? `
       <button class="btn-logout" onclick="doLogout()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         Cerrar sesión
       </button>
+      ` : ''}
     </div>
 
     <!-- Modal de Recorte de Foto -->
+    ${isOwnProfile ? `
     <div class="photo-editor-modal" id="photo-modal">
       <div class="photo-editor-content">
         <h3 class="photo-editor-title">Ajustar Foto</h3>
-        <div class="crop-container-wrapper" id="crop-container">
-          <!-- Canvas se inserta aquí -->
-        </div>
+        <div class="crop-container-wrapper" id="crop-container"></div>
         <div class="crop-hint" id="crop-hint" style="display:none;">Arrastrá para mover</div>
         <input type="range" class="zoom-slider" id="photo-zoom" min="100" max="300" value="100" style="display:none;">
         <div class="photo-actions">
@@ -72,47 +102,38 @@ export async function renderProfile(container) {
         </div>
       </div>
     </div>
+    ` : ''}
   `;
-
-  // Cargar datos en paralelo
-  const [profile, history] = await Promise.all([
-    getUserProfile(user.uid).catch(() => null),
-    getWorkoutHistory(user.uid, 10).catch(() => []),
-  ]);
-
-  // Actualizar avatar si hay foto
-  if (profile?.photoURL) {
-    document.getElementById('profile-avatar').innerHTML = `<img src="${profile.photoURL}" alt="Avatar">`;
-  }
 
   // Stats
   renderStats(profile);
-  if (profile?.bodyWeight) document.getElementById('edit-bw').value = profile.bodyWeight;
 
   // Historial
   renderHistory(history);
 
-  // Manejar el upload y cropper
-  setupCropper();
+  // Gráfico de RM
+  renderRMChart(rmHistory, profile?.currentRM);
 
-  // Guardar perfil
-  window.saveProfile = async () => {
-    const name = document.getElementById('edit-name').value.trim();
-    const bw = parseFloat(document.getElementById('edit-bw').value);
-    if (!name) { showToast('El nombre no puede estar vacío', 'error'); return; }
-    try {
-      await updateUserProfile(user.uid, { displayName: name, bodyWeight: bw });
-      document.getElementById('profile-display-name').textContent = name;
-      showToast('Perfil actualizado ✅', 'success');
-    } catch (_) {
-      showToast('Error al guardar', 'error');
-    }
-  };
+  if (isOwnProfile) {
+    setupCropper();
 
-  // Logout
-  window.doLogout = async () => {
-    await signOut(auth);
-  };
+    window.saveProfile = async () => {
+      const name = document.getElementById('edit-name').value.trim();
+      const bw = parseFloat(document.getElementById('edit-bw').value);
+      if (!name) { showToast('El nombre no puede estar vacío', 'error'); return; }
+      try {
+        await updateUserProfile(targetUid, { displayName: name, bodyWeight: bw });
+        document.getElementById('profile-display-name').textContent = name;
+        showToast('Perfil actualizado ✅', 'success');
+      } catch (_) {
+        showToast('Error al guardar', 'error');
+      }
+    };
+
+    window.doLogout = async () => {
+      await signOut(auth);
+    };
+  }
 }
 
 function renderStats(profile) {
@@ -169,6 +190,67 @@ function renderHistory(sessions) {
 
 function getInitials(name) {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function renderRMChart(rmHistory, currentRM) {
+  const ctx = document.getElementById('rmChart');
+  if (!ctx) return;
+
+  if ((!rmHistory || rmHistory.length === 0) && (!currentRM || currentRM === 0)) {
+    ctx.parentElement.innerHTML = '<p class="empty-hint">Aún no hay datos de 1RM.</p>';
+    return;
+  }
+
+  let labels = [];
+  let data = [];
+
+  if (rmHistory && rmHistory.length > 0) {
+    rmHistory.forEach(item => {
+      labels.push(item.date?.toDate?.() ? item.date.toDate().toLocaleDateString('es-AR') : '–');
+      data.push(item.rm);
+    });
+  } else if (currentRM) {
+    labels = [new Date().toLocaleDateString('es-AR')];
+    data = [currentRM];
+  }
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'RM Lastre (kg)',
+        data: data,
+        borderColor: '#d4ff00',
+        backgroundColor: 'rgba(212,255,0,0.1)',
+        borderWidth: 3,
+        pointBackgroundColor: '#1a1a1a',
+        pointBorderColor: '#d4ff00',
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: {
+          beginAtZero: false,
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#888' }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { color: '#888' }
+        }
+      }
+    }
+  });
 }
 
 // ─── Lógica del Cropper ──────────────────────────────────────────────────────

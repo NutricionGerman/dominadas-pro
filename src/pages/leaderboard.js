@@ -57,7 +57,7 @@ function renderList(users) {
       : `<div class="lb-avatar-initial">${initial}</div>`;
 
     return `
-      <div class="lb-card ${isMe ? 'lb-card-me' : ''}">
+      <div class="lb-card ${isMe ? 'lb-card-me' : ''}" onclick="window.__nav('profile', {uid: '${u.id}'})" style="cursor: pointer;">
         <div class="lb-rank ${rankClass}">${medal}</div>
         <div class="lb-avatar">${avatarHtml}</div>
         <div class="lb-info">
