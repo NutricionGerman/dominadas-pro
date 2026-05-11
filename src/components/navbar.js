@@ -36,5 +36,5 @@ export function renderNavbar() {
   `;
 
   // Expose navigate globally for inline onclick handlers
-  window.__nav = (page) => navigate(page);
+  window.__nav = (page, params) => navigate(page, params);
 }
