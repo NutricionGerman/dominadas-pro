@@ -215,6 +215,13 @@ function renderPlan(plan, currentWeek, config) {
           currentWeek: 5,
           lastWorkout: new Date().toISOString(),
         });
+        
+        await saveWorkoutSession(uid, {
+          week: 5,
+          day: 'Récord',
+          sets: [{ reps: testReps, weight: testWeight }]
+        });
+
         overlay?.remove();
         showToast('¡NUEVO RÉCORD! 🏆 Tu RM fue actualizado en el ranking', 'success', 5000);
       } else {
@@ -224,6 +231,13 @@ function renderPlan(plan, currentWeek, config) {
           totalWorkouts: (profile.totalWorkouts || 0) + 1,
           lastWorkout: new Date().toISOString(),
         });
+
+        await saveWorkoutSession(uid, {
+          week: week,
+          day: 'Completada',
+          sets: []
+        });
+
         overlay?.remove();
         showToast(`✅ Semana ${week} completada — ahora vas por la Semana ${nextWeek} 🔥`, 'success', 4000);
       }

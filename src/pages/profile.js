@@ -177,10 +177,19 @@ function renderHistory(sessions) {
   }
   el.innerHTML = sessions.map(s => {
     const date = s.date?.toDate?.() ? s.date.toDate().toLocaleDateString('es-AR') : '–';
+    let label = `Semana ${s.week}`;
+    if (s.day === 'Completada') {
+      label += ' completada';
+    } else if (s.day === 'Récord') {
+      label += ' - Récord 🏆';
+    } else {
+      label += ` · Día ${s.day}`;
+    }
+
     return `
       <div class="history-item">
         <div class="history-info">
-          <span class="history-label">Semana ${s.week} · Día ${s.day}</span>
+          <span class="history-label">${label}</span>
           <span class="history-date">${date}</span>
         </div>
       </div>
