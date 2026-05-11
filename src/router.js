@@ -40,3 +40,6 @@ export function navigate(path, params = {}) {
 export function getCurrentPage() {
   return currentPage;
 }
+
+// Exponer navigate globalmente para usarlo en atributos onclick HTML
+window.__nav = navigate;
