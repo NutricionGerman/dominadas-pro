@@ -391,7 +391,9 @@ a { color: inherit; text-decoration: none; }
   display: flex; align-items: center; justify-content: center;
   font-size: 26px; font-weight: 900; margin: 0 auto 14px;
   box-shadow: 0 0 0 4px rgba(212,255,0,.2);
+  overflow: hidden;
 }
+.avatar-circle img { width: 100%; height: 100%; object-fit: cover; }
 .profile-name { font-size: 20px; font-weight: 900; }
 .profile-email { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 .profile-stats { padding: 4px 16px; }
