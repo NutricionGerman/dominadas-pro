@@ -543,6 +543,10 @@ a { color: inherit; text-decoration: none; }
 }
 .avatar-upload-wrapper:active .avatar-upload-overlay { opacity: 1; }
 
+.avatar-static-wrapper { position: relative; display: inline-block; cursor: default; margin: 0 auto 14px; }
+.avatar-static-wrapper .avatar-circle { margin-bottom: 0; position: relative; overflow: hidden; }
+.avatar-static-wrapper .avatar-circle img { width: 100%; height: 100%; object-fit: cover; }
+
 /* ─── Video Owner Badge & Comments ───────────────────────────── */
 .video-owner-badge {
   position: absolute; top: 8px; left: 8px;
