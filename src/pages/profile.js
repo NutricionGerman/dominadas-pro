@@ -38,8 +38,8 @@ export async function renderProfile(container, params = {}) {
       <div class="profile-hero">
         <label class="${isOwnProfile ? 'avatar-upload-wrapper' : 'avatar-static-wrapper'}" title="${isOwnProfile ? 'Cambiar foto de perfil' : ''}">
           ${isOwnProfile ? `<input type="file" id="photo-input" accept="image/*" class="hidden">` : ''}
-          <div class="avatar-circle" id="profile-avatar">
-            ${profile?.photoURL ? `<img src="${profile.photoURL}" alt="Avatar">` : getInitials(displayName)}
+          <div class="avatar-circle" id="profile-avatar" style="overflow: hidden; border-radius: 50%;">
+            ${profile?.photoURL ? `<img src="${profile.photoURL}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">` : getInitials(displayName)}
           </div>
           ${isOwnProfile ? `<div class="avatar-upload-overlay">📷</div>` : ''}
         </label>
@@ -309,7 +309,7 @@ function setupCropper() {
 
     try {
       await updateUserProfile(uid, { photoURL: photoDataUrl });
-      document.getElementById('profile-avatar').innerHTML = `<img src="${photoDataUrl}" alt="Avatar">`;
+      document.getElementById('profile-avatar').innerHTML = `<img src="${photoDataUrl}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">`;
       closePhotoEditor();
       showToast('Foto actualizada ✅', 'success');
     } catch (err) {
