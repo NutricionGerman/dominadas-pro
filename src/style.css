@@ -168,6 +168,9 @@ a { color: inherit; text-decoration: none; }
 }
 .auth-form { display: none; }
 .auth-form.active { display: block; }
+.forgot-password { text-align: right; margin-top: -6px; margin-bottom: 16px; font-size: 12px; }
+.forgot-password a { color: var(--accent); font-weight: 700; text-decoration: none; }
+.forgot-password a:hover { text-decoration: underline; }
 
 /* ── Leaderboard ────────────────────────────────────────── */
 .lb-list { padding: 0 16px 8px; }
@@ -547,7 +550,7 @@ a { color: inherit; text-decoration: none; }
 }
 .owner-avatar-circle {
   width: 24px; height: 24px; border-radius: 50%;
-  background: var(--primary); display: flex; align-items: center; justify-content: center;
+  background: var(--accent); display: flex; align-items: center; justify-content: center;
   overflow: hidden; border: 1px solid rgba(255,255,255,0.2);
 }
 .owner-avatar-img { width: 100%; height: 100%; object-fit: cover; }
@@ -571,7 +574,7 @@ a { color: inherit; text-decoration: none; }
 }
 .comment-item { display: flex; gap: 10px; align-items: flex-start; }
 .comment-avatar {
-  width: 32px; height: 32px; border-radius: 50%; background: var(--primary); flex-shrink: 0;
+  width: 32px; height: 32px; border-radius: 50%; background: var(--accent); flex-shrink: 0;
   display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: #111;
   overflow: hidden;
 }
@@ -580,7 +583,7 @@ a { color: inherit; text-decoration: none; }
   background: var(--bg-card); padding: 10px 12px; border-radius: 12px; border-top-left-radius: 4px;
   font-size: 13px; flex-grow: 1; border: 1px solid var(--border);
 }
-.comment-body strong { display: block; color: var(--primary); font-size: 11px; text-transform: uppercase; margin-bottom: 2px; }
+.comment-body strong { display: block; color: var(--accent); font-size: 11px; text-transform: uppercase; margin-bottom: 2px; }
 .comment-body p { margin: 0; color: var(--text-main); }
 .comment-input-area {
   padding: 12px; background: var(--bg-card); border-top: 1px solid var(--border);
@@ -589,3 +592,35 @@ a { color: inherit; text-decoration: none; }
 .comment-input-area .field-input { margin-bottom: 0; flex-grow: 1; padding: 8px 12px; border-radius: 20px; font-size: 13px; }
 .comment-input-area .btn-primary { width: auto; padding: 0 16px; border-radius: 20px; height: 36px; font-size: 12px; }
 .empty-comments { color: var(--text-muted); font-size: 13px; text-align: center; margin-top: 20px; }
+
+/* ─── Top Header & Mode Switch ───────────────────────────── */
+#top-header {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(18, 18, 18, 0.85); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  padding: 12px;
+}
+#top-header.hidden { display: none; }
+
+.mode-switch-container { display: flex; justify-content: center; width: 100%; }
+.mode-switch {
+  position: relative; display: flex;
+  background: var(--bg-card); border-radius: 30px;
+  padding: 4px; border: 1px solid var(--border);
+  width: 240px;
+}
+.mode-switch-bg {
+  position: absolute; top: 4px; bottom: 4px; left: 4px;
+  width: calc(50% - 4px); background: var(--accent);
+  border-radius: 26px; transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+.mode-switch-bg.right { transform: translateX(100%); }
+
+.mode-btn {
+  flex: 1; position: relative; z-index: 1;
+  background: transparent; border: none; padding: 6px 0;
+  color: var(--text-muted); font-size: 11px; font-weight: 700; text-transform: uppercase;
+  cursor: pointer; transition: color 0.3s;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.mode-btn.active { color: #111; }

@@ -6,6 +6,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   updateProfile,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { createUserProfile } from '../services/userService.js';
 import { showToast } from '../components/toast.js';
@@ -37,6 +38,9 @@ export function renderAuth(container) {
           <div class="field-group">
             <label class="field-label">Contraseña</label>
             <input type="password" id="login-pass" class="field-input" placeholder="••••••••" required autocomplete="current-password">
+          </div>
+          <div class="forgot-password">
+            <a href="#" onclick="handleForgotPassword(event)">¿Olvidaste tu contraseña?</a>
           </div>
           <button type="submit" class="btn-primary" id="login-submit-btn">
             <span id="login-btn-text">Iniciar sesión</span>
@@ -92,6 +96,22 @@ export function renderAuth(container) {
     } catch (err) {
       showToast(getAuthError(err.code), 'error');
       setLoading('login', false);
+    }
+  };
+
+  // ── Olvidé mi contraseña
+  window.handleForgotPassword = async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('login-email').value.trim();
+    if (!email) {
+      showToast('Por favor, ingresá tu email arriba para recuperar la contraseña.', 'info');
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      showToast('Te enviamos un correo para restablecer tu contraseña.', 'success');
+    } catch (err) {
+      showToast(getAuthError(err.code), 'error');
     }
   };
 
